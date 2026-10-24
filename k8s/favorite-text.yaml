@@ -1,0 +1,68 @@
+# Kubernetes setup for the Favorite Text app.
+#   kubectl apply -f k8s/favorite-text.yaml    create / update
+#   kubectl delete -f k8s/favorite-text.yaml   remove (also deletes the stored texts)
+
+# Storage shared by all instances (the /data folder).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: favorite-text-data
+spec:
+  accessModes: ["ReadWriteOnce"]   # fine on a single-node cluster like minikube
+  resources:
+    requests:
+      storage: 100Mi
+---
+# Runs and supervises the instances (pods); restarts them if they crash.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: favorite-text
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: favorite-text
+  template:
+    metadata:
+      labels:
+        app: favorite-text
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000            # makes the volume writable for the app user
+      containers:
+        - name: app
+          image: favorite-text:latest
+          imagePullPolicy: Never   # use the locally loaded image, don't pull from a registry
+          ports:
+            - containerPort: 6060
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:          # only send traffic to a pod once the page answers
+            httpGet:
+              path: /
+              port: 6060
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 128Mi}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: favorite-text-data
+---
+# One fixed address for all instances; requests are spread across the pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: favorite-text
+spec:
+  type: NodePort
+  selector:
+    app: favorite-text
+  ports:
+    - port: 6060
+      targetPort: 6060
+      nodePort: 30060

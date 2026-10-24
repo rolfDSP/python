@@ -1,0 +1,7 @@
+*.txt
+!requirements.txt
+*.md
+__pycache__/
+.venv/
+Dockerfile
+.dockerignore

@@ -1,0 +1,21 @@
+# Runs three instances of the app; all save into this folder.
+#   docker compose up -d --build   start (and rebuild after code changes)
+#   docker compose down            stop and remove
+
+x-app: &app
+  build: .
+  image: favorite-text
+  volumes:
+    - .:/data
+  restart: unless-stopped
+
+services:
+  app1:
+    <<: *app
+    ports: ["6060:6060"]
+  app2:
+    <<: *app
+    ports: ["6061:6060"]
+  app3:
+    <<: *app
+    ports: ["6062:6060"]
